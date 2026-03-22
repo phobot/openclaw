@@ -154,7 +154,6 @@ export function createCampfireGateway(params?: {
             id: inbound.roomId,
           },
         });
-        const sessionKey = `${route.sessionKey}:account:${route.accountId}`;
 
         const commandAuthorized = resolveCampfireCommandAuthorized({
           cfg: currentCfg,
@@ -170,7 +169,7 @@ export function createCampfireGateway(params?: {
           CommandBody: inbound.text,
           From: `campfire:${inbound.sender.id}`,
           To: `campfire:room:${inbound.roomId}`,
-          SessionKey: sessionKey,
+          SessionKey: route.sessionKey,
           AccountId: route.accountId,
           ChatType: "group",
           ConversationLabel: inbound.roomName,

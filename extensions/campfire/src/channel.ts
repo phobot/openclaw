@@ -8,6 +8,7 @@ import {
 } from "./config.js";
 import { campfireGateway } from "./monitor/provider.js";
 import { sendCampfireText } from "./send.js";
+import { resolveCampfireOutboundSessionRoute } from "./session-route.js";
 import type { ResolvedCampfireAccount } from "./types.js";
 import { isCampfireUrlInWorkspaceScope, isValidCampfireUrl } from "./workspace-url.js";
 
@@ -74,6 +75,7 @@ export function createCampfirePlugin(params?: {
     },
     messaging: {
       normalizeTarget: (target) => target.trim() || undefined,
+      resolveOutboundSessionRoute: (params) => resolveCampfireOutboundSessionRoute(params),
       targetResolver: {
         looksLikeId: (id) => isValidCampfireUrl(id.trim()),
         hint: "<campfire room webhook URL>",

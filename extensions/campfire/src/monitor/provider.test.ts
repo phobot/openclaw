@@ -1,3 +1,4 @@
+import { resolveAgentRoute } from "openclaw/plugin-sdk/routing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CampfireWebhookPayload, ResolvedCampfireAccount } from "../types.js";
 import { createCampfireGateway } from "./provider.js";
@@ -85,8 +86,13 @@ describe("campfire gateway", () => {
     const finalizedCtx = finalizeInboundContext.mock.calls[0]?.[0] as
       | Record<string, unknown>
       | undefined;
-    expect(finalizedCtx?.SessionKey).toMatch(/^agent:/);
-    expect(finalizedCtx?.SessionKey).toContain(":account:default");
+    const expectedRoute = resolveAgentRoute({
+      cfg: {},
+      channel: "campfire",
+      accountId: "default",
+      peer: { kind: "group", id: "7" },
+    });
+    expect(finalizedCtx?.SessionKey).toBe(expectedRoute.sessionKey);
     expect(dispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalled();
     expect(sendText).toHaveBeenCalledWith(
       "https://campfire.example.com/rooms/7/42-AbCdEf/messages",

@@ -87,4 +87,26 @@ describe("campfire channel plugin", () => {
     ).rejects.toThrow("must match channels.campfire.baseUrl");
     expect(sendText).not.toHaveBeenCalled();
   });
+
+  it("resolves outbound session routing to stable room identity", async () => {
+    const plugin = createCampfirePlugin();
+
+    const route = await plugin.messaging?.resolveOutboundSessionRoute?.({
+      cfg: {},
+      agentId: "main",
+      accountId: "default",
+      target: "https://campfire.example.com/rooms/7/42-AbCdEf/messages",
+    });
+
+    expect(route).toEqual(
+      expect.objectContaining({
+        peer: { kind: "group", id: "7" },
+        chatType: "group",
+        from: "campfire:room:7",
+        to: "campfire:room:7",
+      }),
+    );
+    expect(route?.sessionKey).toContain(":group:7");
+    expect(route?.sessionKey).not.toContain("https://campfire.example.com");
+  });
 });
