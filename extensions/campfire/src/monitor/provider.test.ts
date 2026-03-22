@@ -280,7 +280,7 @@ describe("campfire gateway", () => {
     const loadConfig = vi.fn(() => ({ commands: { useAccessGroups: true } }));
     let finalizedCtx: Record<string, unknown> | undefined;
 
-    const gateway = createCampfireGateway({ registerRoute, sendText, loadConfig } as never);
+    const gateway = createCampfireGateway({ registerRoute, sendText, loadConfig });
     const abort = new AbortController();
     const startPromise = gateway.startAccount({
       cfg: {
