@@ -23,7 +23,7 @@ function createAccount(overrides?: Partial<ResolvedCampfireAccount>): ResolvedCa
     enabled: true,
     configured: true,
     baseUrl: "https://campfire.example.com",
-    botKey: "42-AbCdEf",
+    botKey: "100-AbCdEf",
     allowFrom: [],
     webhookPath: "/channels/campfire/webhook/default",
     textChunkLimit: 4000,
@@ -97,7 +97,7 @@ describe("campfire gateway", () => {
     expect(sendText).toHaveBeenCalledWith(
       "https://campfire.example.com/rooms/7/42-AbCdEf/messages",
       "Hello back",
-      "42-AbCdEf",
+      "100-AbCdEf",
       4000,
     );
 
@@ -328,6 +328,44 @@ describe("campfire gateway", () => {
 
     expect(loadConfig).toHaveBeenCalledTimes(1);
     expect(finalizedCtx?.CommandAuthorized).toBe(false);
+
+    abort.abort();
+    await startPromise;
+  });
+
+  it("drops inbound messages authored by the configured bot", async () => {
+    const registerRoute = vi.fn().mockReturnValue(() => {});
+    const sendText = vi.fn().mockResolvedValue(undefined);
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn();
+
+    const gateway = createCampfireGateway({ registerRoute, sendText });
+    const abort = new AbortController();
+    const startPromise = gateway.startAccount({
+      cfg: {},
+      accountId: "default",
+      account: createAccount({ botKey: "42-AbCdEf" }),
+      runtime: {
+        log: () => {},
+        error: () => {},
+        exit: () => {},
+      },
+      abortSignal: abort.signal,
+      getStatus: () => ({ accountId: "default" }),
+      setStatus: () => {},
+      channelRuntime: {
+        reply: {
+          finalizeInboundContext: vi.fn((ctx: Record<string, unknown>) => ctx),
+          dispatchReplyWithBufferedBlockDispatcher,
+        },
+      },
+    });
+
+    const registered = registerRoute.mock.calls[0]?.[0];
+    await registered.onInbound(validPayload);
+
+    expect(dispatchReplyWithBufferedBlockDispatcher).not.toHaveBeenCalled();
+    expect(sendText).not.toHaveBeenCalled();
 
     abort.abort();
     await startPromise;

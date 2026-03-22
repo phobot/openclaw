@@ -46,6 +46,21 @@ function resolveCampfireCommandAuthorized(params: {
   });
 }
 
+function resolveCampfireBotUserId(botKey: string): string | null {
+  const normalized = botKey.trim();
+  if (!normalized) {
+    return null;
+  }
+  const [prefix] = normalized.split("-", 1);
+  const botUserId = prefix?.trim();
+  return botUserId ? botUserId : null;
+}
+
+function isCampfireSelfAuthoredInbound(params: { senderId: string; botKey: string }): boolean {
+  const botUserId = resolveCampfireBotUserId(params.botKey);
+  return Boolean(botUserId && params.senderId === botUserId);
+}
+
 type CampfireGatewayContext = {
   cfg: OpenClawConfig;
   accountId: string;
@@ -135,6 +150,11 @@ export function createCampfireGateway(params?: {
           allowFrom: ctx.account.allowFrom,
           baseUrl: ctx.account.baseUrl,
         });
+        if (
+          isCampfireSelfAuthoredInbound({ senderId: inbound.sender.id, botKey: ctx.account.botKey })
+        ) {
+          return;
+        }
         if (!inbound.isAllowed) {
           return;
         }
