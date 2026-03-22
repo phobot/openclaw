@@ -1,4 +1,8 @@
 import type { ChannelAccountSnapshot } from "openclaw/plugin-sdk/channel-contract";
+import {
+  resolveCommandAuthorizedFromAuthorizers,
+  shouldComputeCommandAuthorized,
+} from "openclaw/plugin-sdk/command-auth";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { registerCampfireWebhookRoute, type CampfireInboundHandler } from "../http/index.js";
 import { sendCampfireText } from "../send.js";
@@ -12,6 +16,33 @@ function waitUntilAbort(signal: AbortSignal): Promise<void> {
       return;
     }
     signal.addEventListener("abort", () => resolve(), { once: true });
+  });
+}
+
+function resolveCampfireCommandAuthorized(params: {
+  cfg: OpenClawConfig;
+  rawBody: string;
+  allowFrom: string[];
+  senderId: string;
+  senderName: string;
+}): boolean | undefined {
+  const shouldComputeAuth = shouldComputeCommandAuthorized(params.rawBody, params.cfg);
+  if (!shouldComputeAuth) {
+    return undefined;
+  }
+
+  const allowFrom = params.allowFrom.map((entry) => entry.trim()).filter(Boolean);
+  const senderAllowedForCommands =
+    allowFrom.includes(params.senderId) || allowFrom.includes(params.senderName);
+
+  return resolveCommandAuthorizedFromAuthorizers({
+    useAccessGroups: params.cfg.commands?.useAccessGroups !== false,
+    authorizers: [
+      {
+        configured: allowFrom.length > 0,
+        allowed: senderAllowedForCommands,
+      },
+    ],
   });
 }
 
@@ -83,6 +114,14 @@ export function createCampfireGateway(params?: {
           return;
         }
 
+        const commandAuthorized = resolveCampfireCommandAuthorized({
+          cfg: ctx.cfg,
+          rawBody: inbound.text,
+          allowFrom: ctx.account.allowFrom,
+          senderId: inbound.sender.id,
+          senderName: inbound.sender.name,
+        });
+
         const msgCtx = channelRuntime.reply.finalizeInboundContext({
           Body: inbound.text,
           BodyForAgent: inbound.text,
@@ -104,7 +143,7 @@ export function createCampfireGateway(params?: {
           MessageSidFull: inbound.messageId,
           GroupSpace: inbound.roomName,
           Timestamp: Date.now(),
-          CommandAuthorized: true,
+          CommandAuthorized: commandAuthorized,
         });
 
         await channelRuntime.reply.dispatchReplyWithBufferedBlockDispatcher({
