@@ -45,6 +45,16 @@ describe("buildCampfireInboundContext", () => {
     expect(context.replyUrl).toBe("https://campfire.example.com/rooms/7/42-AbCdEf/messages");
   });
 
+  it("treats allowFrom entries as sender IDs only", () => {
+    const context = buildCampfireInboundContext({
+      payload: createPayload(),
+      allowFrom: ["Alice"],
+      baseUrl: "https://campfire.example.com",
+    });
+
+    expect(context.isAllowed).toBe(false);
+  });
+
   it("uses a stable thread key for the same room", () => {
     const first = buildCampfireInboundContext({
       payload: createPayload(),

@@ -133,6 +133,44 @@ describe("campfire gateway", () => {
     await startPromise;
   });
 
+  it("does not allow sender-name matches in allowFrom", async () => {
+    const registerRoute = vi.fn().mockReturnValue(() => {});
+    const sendText = vi.fn().mockResolvedValue(undefined);
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn();
+
+    const gateway = createCampfireGateway({ registerRoute, sendText });
+    const abort = new AbortController();
+    const startPromise = gateway.startAccount({
+      cfg: {},
+      accountId: "default",
+      account: createAccount({ allowFrom: ["Alice"] }),
+      runtime: {
+        log: () => {},
+        error: () => {},
+        exit: () => {},
+      },
+      abortSignal: abort.signal,
+      getStatus: () => ({ accountId: "default" }),
+      setStatus: () => {},
+      channelRuntime: {
+        reply: {
+          finalizeInboundContext: vi.fn((ctx: Record<string, unknown>) => ctx),
+          dispatchReplyWithBufferedBlockDispatcher,
+        },
+      },
+    });
+
+    const registered = registerRoute.mock.calls[0]?.[0];
+    await registered.onInbound(validPayload);
+
+    expect(dispatchReplyWithBufferedBlockDispatcher).not.toHaveBeenCalled();
+    expect(sendText).not.toHaveBeenCalled();
+
+    abort.abort();
+    await startPromise;
+  });
+
   it("marks command messages unauthorized when no allowFrom is configured", async () => {
     const registerRoute = vi.fn().mockReturnValue(() => {});
     const sendText = vi.fn().mockResolvedValue(undefined);

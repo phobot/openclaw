@@ -24,7 +24,6 @@ function resolveCampfireCommandAuthorized(params: {
   rawBody: string;
   allowFrom: string[];
   senderId: string;
-  senderName: string;
 }): boolean | undefined {
   const shouldComputeAuth = shouldComputeCommandAuthorized(params.rawBody, params.cfg);
   if (!shouldComputeAuth) {
@@ -32,8 +31,7 @@ function resolveCampfireCommandAuthorized(params: {
   }
 
   const allowFrom = params.allowFrom.map((entry) => entry.trim()).filter(Boolean);
-  const senderAllowedForCommands =
-    allowFrom.includes(params.senderId) || allowFrom.includes(params.senderName);
+  const senderAllowedForCommands = allowFrom.includes(params.senderId);
 
   return resolveCommandAuthorizedFromAuthorizers({
     useAccessGroups: params.cfg.commands?.useAccessGroups !== false,
@@ -119,7 +117,6 @@ export function createCampfireGateway(params?: {
           rawBody: inbound.text,
           allowFrom: ctx.account.allowFrom,
           senderId: inbound.sender.id,
-          senderName: inbound.sender.name,
         });
 
         const msgCtx = channelRuntime.reply.finalizeInboundContext({

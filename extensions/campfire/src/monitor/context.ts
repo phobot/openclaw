@@ -15,10 +15,7 @@ export function buildCampfireInboundContext(params: {
   const senderName = payload.user.name;
 
   const normalizedAllowFrom = (allowFrom ?? []).map((entry) => entry.trim()).filter(Boolean);
-  const senderAllowed =
-    normalizedAllowFrom.length === 0 ||
-    normalizedAllowFrom.includes(senderId) ||
-    normalizedAllowFrom.includes(senderName);
+  const senderAllowed = normalizedAllowFrom.length === 0 || normalizedAllowFrom.includes(senderId);
 
   const replyUrlAllowed = isAllowedReplyUrl(payload.room.path, baseUrl);
 
