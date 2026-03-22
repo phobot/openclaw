@@ -25,6 +25,9 @@
       "npmSpec": "@openclaw/campfire",
       "localPath": "extensions/campfire",
       "defaultChoice": "npm"
+    },
+    "release": {
+      "publishToNpm": true
     }
   }
 }
