@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sendCampfireReply, sendCampfireText } from "./send.js";
+import { chunkCampfireText, sendCampfireReply, sendCampfireText } from "./send.js";
 
 describe("sendCampfireReply", () => {
   afterEach(() => {
@@ -33,6 +33,17 @@ describe("sendCampfireReply", () => {
     );
   });
 
+  it("omits Authorization header when botKey is empty", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendCampfireReply("https://campfire.example.com/rooms/7/key/messages", "Hello world");
+
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+    expect(headers["Content-Type"]).toBe("text/plain; charset=utf-8");
+  });
+
   it("throws when Campfire rejects the message", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response("no", {
@@ -45,6 +56,30 @@ describe("sendCampfireReply", () => {
     await expect(
       sendCampfireReply("https://campfire.example.com/rooms/7/key/messages", "Hello world"),
     ).rejects.toThrow("Campfire reply failed: 403 Forbidden");
+  });
+});
+
+describe("chunkCampfireText", () => {
+  it("returns a single chunk for text within the limit", () => {
+    expect(chunkCampfireText("hello", 10)).toEqual(["hello"]);
+  });
+
+  it("returns an empty-string chunk for empty input", () => {
+    expect(chunkCampfireText("")).toEqual([""]);
+  });
+
+  it("falls back to chunk size 1 for non-positive limits", () => {
+    expect(chunkCampfireText("abc", 0)).toEqual(["a", "b", "c"]);
+    expect(chunkCampfireText("ab", -5)).toEqual(["a", "b"]);
+  });
+
+  it("falls back to chunk size 1 for non-finite limits", () => {
+    expect(chunkCampfireText("ab", Number.NaN)).toEqual(["a", "b"]);
+    expect(chunkCampfireText("ab", Number.POSITIVE_INFINITY)).toEqual(["a", "b"]);
+  });
+
+  it("floors fractional chunk limits", () => {
+    expect(chunkCampfireText("abcde", 2.9)).toEqual(["ab", "cd", "e"]);
   });
 });
 

@@ -35,9 +35,52 @@ describe("parseCampfirePayload", () => {
     expect(parsed).toBeNull();
   });
 
+  it("accepts payload without optional html field", () => {
+    const payload = {
+      user: { id: 42, name: "Alice" },
+      room: {
+        id: 7,
+        name: "General",
+        path: "https://campfire.example.com/rooms/7/42-AbCdEf/messages",
+      },
+      message: {
+        id: 99,
+        body: { plain: "Hey help me" },
+        path: "https://campfire.example.com/rooms/7/@99",
+      },
+    };
+
+    const parsed = parseCampfirePayload(payload);
+    expect(parsed).toBeTruthy();
+    expect(parsed!.message.body.html).toBeUndefined();
+    expect(parsed!.message.body.plain).toBe("Hey help me");
+  });
+
+  it("returns null when html is present but not a string", () => {
+    const parsed = parseCampfirePayload({
+      user: { id: 42, name: "Alice" },
+      room: {
+        id: 7,
+        name: "General",
+        path: "https://campfire.example.com/rooms/7/42-AbCdEf/messages",
+      },
+      message: {
+        id: 99,
+        body: { plain: "Hey", html: 123 },
+        path: "https://campfire.example.com/rooms/7/@99",
+      },
+    });
+
+    expect(parsed).toBeNull();
+  });
+
   it("returns null for malformed input", () => {
     expect(parseCampfirePayload(null)).toBeNull();
     expect(parseCampfirePayload("not-json")).toBeNull();
     expect(parseCampfirePayload(123)).toBeNull();
+  });
+
+  it("returns null for array input", () => {
+    expect(parseCampfirePayload([1, 2, 3])).toBeNull();
   });
 });
