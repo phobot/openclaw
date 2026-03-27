@@ -52,6 +52,16 @@ function reserveCampfireWebhookPath(params: { accountId: string; path: string })
   };
 }
 
+function isCampfireRouteRegistrationFailureLog(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("webhook path missing") ||
+    normalized.includes("route overlap denied") ||
+    normalized.includes("route conflict") ||
+    normalized.includes("route replacement denied")
+  );
+}
+
 function resolveRequestSecret(req: IncomingMessage): string | null {
   try {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -74,9 +84,16 @@ export function createCampfireWebhookHandler(params: {
       return;
     }
 
-    if (params.webhookSecret) {
+    const configuredWebhookSecret = params.webhookSecret?.trim();
+    if (!configuredWebhookSecret) {
+      res.statusCode = 401;
+      res.end("Unauthorized");
+      return;
+    }
+
+    if (configuredWebhookSecret) {
       const secret = resolveRequestSecret(req);
-      if (secret !== params.webhookSecret) {
+      if (secret !== configuredWebhookSecret) {
         res.statusCode = 401;
         res.end("Unauthorized");
         return;
@@ -127,6 +144,13 @@ export function registerCampfireWebhookRoute(params: {
     path,
   });
   const registerRoute = params.registerRoute ?? registerPluginHttpRoute;
+  let registrationErrorMessage: string | null = null;
+  const routeLog = (message: string) => {
+    if (!registrationErrorMessage && isCampfireRouteRegistrationFailureLog(message)) {
+      registrationErrorMessage = message;
+    }
+    params.log?.info?.(message);
+  };
 
   let unregister: (() => void) | undefined;
   try {
@@ -138,13 +162,18 @@ export function registerCampfireWebhookRoute(params: {
       pluginId: "campfire",
       accountId: params.accountId,
       source: "campfire-webhook",
-      log: (message) => params.log?.info?.(message),
+      log: routeLog,
       handler: createCampfireWebhookHandler({
         webhookSecret: params.webhookSecret,
         onInbound: params.onInbound,
         log: params.log,
       }),
     });
+    if (registrationErrorMessage) {
+      unregister?.();
+      releaseReservation();
+      throw new Error(registrationErrorMessage);
+    }
   } catch (err) {
     releaseReservation();
     throw err;

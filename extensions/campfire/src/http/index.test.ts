@@ -99,9 +99,25 @@ describe("createCampfireWebhookHandler", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it("rejects malformed payloads", async () => {
+  it("rejects requests when webhook secret is not configured", async () => {
     const handler = createCampfireWebhookHandler({ onInbound: vi.fn() });
-    const req = createJsonRequest({ body: { user: { id: 42 } } });
+    const req = createJsonRequest({
+      url: "/channels/campfire/webhook/default?secret=anything",
+      body: validPayload,
+    });
+    const res = createMockServerResponse();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("rejects malformed payloads", async () => {
+    const handler = createCampfireWebhookHandler({ webhookSecret: "expected", onInbound: vi.fn() });
+    const req = createJsonRequest({
+      url: "/channels/campfire/webhook/default?secret=expected",
+      body: { user: { id: 42 } },
+    });
     const res = createMockServerResponse();
 
     await handler(req, res);
@@ -111,8 +127,11 @@ describe("createCampfireWebhookHandler", () => {
 
   it("returns 200 and dispatches inbound asynchronously", async () => {
     const onInbound = vi.fn();
-    const handler = createCampfireWebhookHandler({ onInbound });
-    const req = createJsonRequest({ body: validPayload });
+    const handler = createCampfireWebhookHandler({ webhookSecret: "expected", onInbound });
+    const req = createJsonRequest({
+      url: "/channels/campfire/webhook/default?secret=expected",
+      body: validPayload,
+    });
     const res = createMockServerResponse();
 
     await handler(req, res);
@@ -131,6 +150,7 @@ describe("createCampfireWebhookHandler", () => {
     const unregister = registerCampfireWebhookRoute({
       accountId: "default",
       path: "/channels/campfire/webhook/shared",
+      webhookSecret: "secret",
       onInbound: vi.fn(),
       registerRoute,
     } as never);
@@ -139,6 +159,7 @@ describe("createCampfireWebhookHandler", () => {
       registerCampfireWebhookRoute({
         accountId: "support",
         path: "/channels/campfire/webhook/shared/",
+        webhookSecret: "secret",
         onInbound: vi.fn(),
         registerRoute,
       } as never),
@@ -153,12 +174,14 @@ describe("createCampfireWebhookHandler", () => {
     const unregisterFirst = registerCampfireWebhookRoute({
       accountId: "default",
       path: "/channels/campfire/webhook/shared",
+      webhookSecret: "secret",
       onInbound: vi.fn(),
       registerRoute,
     } as never);
     const unregisterSecond = registerCampfireWebhookRoute({
       accountId: "default",
       path: "/channels/campfire/webhook/shared/",
+      webhookSecret: "secret",
       onInbound: vi.fn(),
       registerRoute,
     } as never);
@@ -167,5 +190,42 @@ describe("createCampfireWebhookHandler", () => {
 
     unregisterSecond();
     unregisterFirst();
+  });
+
+  it("releases reserved paths when route registration fails", () => {
+    const registerRoute = vi
+      .fn<
+        (
+          params: Parameters<typeof registerCampfireWebhookRoute>[0] & {
+            log?: (message: string) => void;
+          },
+        ) => () => void
+      >()
+      .mockImplementationOnce((params) => {
+        params.log?.("plugin: route conflict at /channels/campfire/webhook/shared (exact)");
+        return () => {};
+      })
+      .mockImplementationOnce(() => () => {});
+
+    expect(() =>
+      registerCampfireWebhookRoute({
+        accountId: "default",
+        path: "/channels/campfire/webhook/shared",
+        webhookSecret: "secret",
+        onInbound: vi.fn(),
+        registerRoute: registerRoute as never,
+      }),
+    ).toThrow(/route conflict/i);
+
+    const unregister = registerCampfireWebhookRoute({
+      accountId: "support",
+      path: "/channels/campfire/webhook/shared",
+      webhookSecret: "secret",
+      onInbound: vi.fn(),
+      registerRoute: registerRoute as never,
+    });
+
+    expect(registerRoute).toHaveBeenCalledTimes(2);
+    unregister();
   });
 });
