@@ -109,4 +109,63 @@ describe("campfire channel plugin", () => {
     expect(route?.sessionKey).toContain(":group:7");
     expect(route?.sessionKey).not.toContain("https://campfire.example.com");
   });
+
+  it("exposes setup applyAccountConfig for channel add", () => {
+    const plugin = createCampfirePlugin();
+
+    const next = plugin.setup?.applyAccountConfig({
+      cfg: {},
+      accountId: "default",
+      input: {
+        httpUrl: "https://3.basecamp.com/1234567/",
+        botToken: "42-AbCdEf",
+      },
+    } as never);
+
+    const section = next?.channels?.campfire as
+      | {
+          enabled?: boolean;
+          baseUrl?: string;
+          botKey?: string;
+        }
+      | undefined;
+    expect(section).toBeTruthy();
+    expect(section?.enabled).toBe(true);
+    expect(section?.baseUrl).toBe("https://3.basecamp.com/1234567");
+    expect(section?.botKey).toBe("42-AbCdEf");
+  });
+
+  it("writes named-account setup values under channels.campfire.accounts", () => {
+    const plugin = createCampfirePlugin();
+
+    const next = plugin.setup?.applyAccountConfig({
+      cfg: {},
+      accountId: "support",
+      input: {
+        url: "https://3.basecamp.com/7654321",
+        token: "99-ZyXwVu",
+        webhookPath: "/channels/campfire/webhook/support",
+      },
+    } as never);
+
+    const section = next?.channels?.campfire as
+      | {
+          enabled?: boolean;
+          accounts?: Record<
+            string,
+            {
+              enabled?: boolean;
+              baseUrl?: string;
+              botKey?: string;
+              webhookPath?: string;
+            }
+          >;
+        }
+      | undefined;
+    expect(section?.enabled).toBe(true);
+    expect(section?.accounts?.support?.enabled).toBe(true);
+    expect(section?.accounts?.support?.baseUrl).toBe("https://3.basecamp.com/7654321");
+    expect(section?.accounts?.support?.botKey).toBe("99-ZyXwVu");
+    expect(section?.accounts?.support?.webhookPath).toBe("/channels/campfire/webhook/support");
+  });
 });

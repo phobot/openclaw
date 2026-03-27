@@ -9,6 +9,7 @@ import {
 import { campfireGateway } from "./monitor/provider.js";
 import { sendCampfireText } from "./send.js";
 import { resolveCampfireOutboundSessionRoute } from "./session-route.js";
+import { campfireSetupAdapter } from "./setup-core.js";
 import type { ResolvedCampfireAccount } from "./types.js";
 import { isCampfireUrlInWorkspaceScope, isValidCampfireUrl } from "./workspace-url.js";
 
@@ -73,6 +74,7 @@ export function createCampfirePlugin(params?: {
         baseUrl: account.baseUrl ? "[set]" : "[missing]",
       }),
     },
+    setup: campfireSetupAdapter,
     messaging: {
       normalizeTarget: (target) => target.trim() || undefined,
       resolveOutboundSessionRoute: (params) => resolveCampfireOutboundSessionRoute(params),
