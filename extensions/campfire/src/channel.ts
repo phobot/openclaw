@@ -8,7 +8,10 @@ import {
 } from "./config.js";
 import { campfireGateway } from "./monitor/provider.js";
 import { sendCampfireText } from "./send.js";
-import { resolveCampfireOutboundSessionRoute } from "./session-route.js";
+import {
+  resolveCampfireOutboundSessionRoute,
+  resolveCampfireRoomIdFromTarget,
+} from "./session-route.js";
 import { campfireSetupAdapter } from "./setup-core.js";
 import type { ResolvedCampfireAccount } from "./types.js";
 import { isCampfireUrlInWorkspaceScope, isValidCampfireUrl } from "./workspace-url.js";
@@ -89,10 +92,11 @@ export function createCampfirePlugin(params?: {
       sendText: async ({ cfg, to, text, accountId }) => {
         const account = resolveCampfireAccount(cfg as OpenClawConfig, accountId);
         const target = assertCampfireOutboundTarget(to, account);
+        const roomId = resolveCampfireRoomIdFromTarget(target);
 
         await sendText(target, text, account.botKey, account.textChunkLimit);
         return attachChannelToResult("campfire", {
-          chatId: target,
+          ...(roomId ? { chatId: `campfire:room:${roomId}` } : {}),
           messageId: `campfire-${now()}`,
         });
       },

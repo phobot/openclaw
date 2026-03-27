@@ -36,7 +36,7 @@ describe("campfire channel plugin", () => {
     expect(result).toEqual(
       expect.objectContaining({
         channel: "campfire",
-        chatId: "https://campfire.example.com/rooms/7/42-AbCdEf/messages",
+        chatId: "campfire:room:7",
         messageId: "campfire-123",
       }),
     );
