@@ -46,10 +46,12 @@ export const campfireSetupAdapter = createPatchedAccountSetupAdapter({
     const baseUrl = resolveCampfireBaseUrl(input);
     const botKey = resolveCampfireBotKey(input);
     const webhookPath = trimOptionalString(input.webhookPath);
+    const webhookSecret = trimOptionalString(input.webhookSecret);
     return {
       ...(baseUrl ? { baseUrl } : {}),
       ...(botKey ? { botKey } : {}),
       ...(webhookPath ? { webhookPath } : {}),
+      ...(webhookSecret ? { webhookSecret } : {}),
     };
   },
 });

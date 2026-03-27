@@ -298,6 +298,7 @@ export async function channelsAddCommand(
     httpHost: opts.httpHost,
     httpPort: opts.httpPort,
     webhookPath: opts.webhookPath,
+    webhookSecret: opts.webhookSecret,
     webhookUrl: opts.webhookUrl,
     audienceType: opts.audienceType,
     audience: opts.audience,

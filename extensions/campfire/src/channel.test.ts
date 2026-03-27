@@ -119,6 +119,7 @@ describe("campfire channel plugin", () => {
       input: {
         httpUrl: "https://3.basecamp.com/1234567/",
         botToken: "42-AbCdEf",
+        webhookSecret: "shared-secret",
       },
     } as never);
 
@@ -127,12 +128,14 @@ describe("campfire channel plugin", () => {
           enabled?: boolean;
           baseUrl?: string;
           botKey?: string;
+          webhookSecret?: string;
         }
       | undefined;
     expect(section).toBeTruthy();
     expect(section?.enabled).toBe(true);
     expect(section?.baseUrl).toBe("https://3.basecamp.com/1234567");
     expect(section?.botKey).toBe("42-AbCdEf");
+    expect(section?.webhookSecret).toBe("shared-secret");
   });
 
   it("writes named-account setup values under channels.campfire.accounts", () => {
@@ -145,6 +148,7 @@ describe("campfire channel plugin", () => {
         url: "https://3.basecamp.com/7654321",
         token: "99-ZyXwVu",
         webhookPath: "/channels/campfire/webhook/support",
+        webhookSecret: "support-secret",
       },
     } as never);
 
@@ -158,6 +162,7 @@ describe("campfire channel plugin", () => {
               baseUrl?: string;
               botKey?: string;
               webhookPath?: string;
+              webhookSecret?: string;
             }
           >;
         }
@@ -167,5 +172,32 @@ describe("campfire channel plugin", () => {
     expect(section?.accounts?.support?.baseUrl).toBe("https://3.basecamp.com/7654321");
     expect(section?.accounts?.support?.botKey).toBe("99-ZyXwVu");
     expect(section?.accounts?.support?.webhookPath).toBe("/channels/campfire/webhook/support");
+    expect(section?.accounts?.support?.webhookSecret).toBe("support-secret");
+  });
+
+  it("preserves existing webhookSecret when setup input omits it", () => {
+    const plugin = createCampfirePlugin();
+
+    const next = plugin.setup?.applyAccountConfig({
+      cfg: {
+        channels: {
+          campfire: {
+            webhookSecret: "keep-me",
+          },
+        },
+      },
+      accountId: "default",
+      input: {
+        httpUrl: "https://3.basecamp.com/1234567",
+        botToken: "42-AbCdEf",
+      },
+    } as never);
+
+    const section = next?.channels?.campfire as
+      | {
+          webhookSecret?: string;
+        }
+      | undefined;
+    expect(section?.webhookSecret).toBe("keep-me");
   });
 });
