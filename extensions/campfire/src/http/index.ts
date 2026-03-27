@@ -85,12 +85,6 @@ export function createCampfireWebhookHandler(params: {
     }
 
     const configuredWebhookSecret = params.webhookSecret?.trim();
-    if (!configuredWebhookSecret) {
-      res.statusCode = 401;
-      res.end("Unauthorized");
-      return;
-    }
-
     if (configuredWebhookSecret) {
       const secret = resolveRequestSecret(req);
       if (secret !== configuredWebhookSecret) {

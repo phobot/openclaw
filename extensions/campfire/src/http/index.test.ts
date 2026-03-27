@@ -99,8 +99,9 @@ describe("createCampfireWebhookHandler", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it("rejects requests when webhook secret is not configured", async () => {
-    const handler = createCampfireWebhookHandler({ onInbound: vi.fn() });
+  it("accepts requests when webhook secret is not configured", async () => {
+    const onInbound = vi.fn();
+    const handler = createCampfireWebhookHandler({ onInbound });
     const req = createJsonRequest({
       url: "/channels/campfire/webhook/default?secret=anything",
       body: validPayload,
@@ -109,7 +110,12 @@ describe("createCampfireWebhookHandler", () => {
 
     await handler(req, res);
 
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(200);
+    expect(onInbound).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onInbound).toHaveBeenCalledWith(validPayload);
   });
 
   it("rejects malformed payloads", async () => {
