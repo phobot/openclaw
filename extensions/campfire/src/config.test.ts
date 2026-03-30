@@ -66,6 +66,25 @@ describe("campfire config resolution", () => {
     expect(account.webhookPath).toBe("/channels/campfire/webhook/custom-alerts");
   });
 
+  it("matches defaultAccount case-insensitively", () => {
+    const cfg = {
+      channels: {
+        campfire: {
+          defaultAccount: "support",
+          accounts: {
+            Support: {
+              baseUrl: "https://campfire.example.com",
+              botKey: "support-key",
+            },
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    expect(resolveDefaultCampfireAccountId(cfg)).toBe("Support");
+    expect(resolveCampfireAccount(cfg).botKey).toBe("support-key");
+  });
+
   it("marks account as unconfigured when baseUrl is missing", () => {
     const cfg = {
       channels: {
@@ -166,6 +185,28 @@ describe("campfire config resolution", () => {
 
     expect(defaultAccount.webhookPath).toBe("/channels/campfire/webhook/shared");
     expect(supportAccount.webhookPath).toBe("/channels/campfire/webhook/support");
+  });
+
+  it("resolves named accounts case-insensitively", () => {
+    const cfg = {
+      channels: {
+        campfire: {
+          baseUrl: "https://campfire.example.com",
+          botKey: "top-level-key",
+          accounts: {
+            Support: {
+              botKey: "support-key",
+              webhookPath: "/channels/campfire/webhook/support-room",
+            },
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    const account = resolveCampfireAccount(cfg, "support");
+
+    expect(account.botKey).toBe("support-key");
+    expect(account.webhookPath).toBe("/channels/campfire/webhook/support-room");
   });
 
   it("lists multiple account IDs", () => {

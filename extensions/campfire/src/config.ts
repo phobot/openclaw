@@ -1,4 +1,4 @@
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/account-id";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk/account-id";
 import { createHybridChannelConfigAdapter } from "openclaw/plugin-sdk/channel-config-helpers";
 import { buildChannelConfigSchema } from "openclaw/plugin-sdk/channel-config-schema";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
@@ -64,8 +64,14 @@ export function resolveDefaultCampfireAccountId(cfg: OpenClawConfig): string {
   const section = resolveCampfireConfigSection(cfg);
   const ids = listCampfireAccountIds(cfg);
   const preferred = trimOptionalString(section.defaultAccount);
-  if (preferred && ids.includes(preferred)) {
-    return preferred;
+  if (preferred) {
+    const normalizedPreferred = normalizeAccountId(preferred);
+    const matchedPreferred = ids.find(
+      (accountId) => normalizeAccountId(accountId) === normalizedPreferred,
+    );
+    if (matchedPreferred) {
+      return matchedPreferred;
+    }
   }
   if (ids.includes(DEFAULT_ACCOUNT_ID)) {
     return DEFAULT_ACCOUNT_ID;
@@ -81,7 +87,16 @@ function resolveCampfireAccountOverride(
   if (!accounts || typeof accounts !== "object") {
     return {};
   }
-  const override = accounts[accountId];
+  const normalizedAccountId = normalizeAccountId(accountId);
+  const accountKey = Object.prototype.hasOwnProperty.call(accounts, accountId)
+    ? accountId
+    : Object.keys(accounts).find(
+        (candidate) => normalizeAccountId(candidate) === normalizedAccountId,
+      );
+  if (!accountKey) {
+    return {};
+  }
+  const override = accounts[accountKey];
   if (!override || typeof override !== "object" || Array.isArray(override)) {
     return {};
   }
