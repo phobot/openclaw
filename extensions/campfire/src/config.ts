@@ -167,7 +167,17 @@ export const campfireConfigSchema: z.ZodType<CampfireChannelConfig> = campfireAc
   accounts: z.record(z.string(), campfireAccountSchema.optional()).optional(),
 });
 
-export const campfireChannelConfigSchema = buildChannelConfigSchema(campfireConfigSchema);
+export const campfireChannelConfigSchema = {
+  ...buildChannelConfigSchema(campfireConfigSchema),
+  uiHints: {
+    botKey: {
+      sensitive: true,
+    },
+    "accounts.*.botKey": {
+      sensitive: true,
+    },
+  },
+};
 
 export const campfireConfigAdapter = createHybridChannelConfigAdapter<ResolvedCampfireAccount>({
   sectionKey: "campfire",

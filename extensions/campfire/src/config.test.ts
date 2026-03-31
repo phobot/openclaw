@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { describe, expect, it } from "vitest";
 import {
+  campfireChannelConfigSchema,
   listCampfireAccountIds,
   resolveCampfireAccount,
   resolveDefaultCampfireAccountId,
@@ -224,5 +225,10 @@ describe("campfire config resolution", () => {
     const ids = listCampfireAccountIds(cfg);
 
     expect(ids).toEqual(["alerts", "support"]);
+  });
+
+  it("marks botKey fields as sensitive in config schema ui hints", () => {
+    expect(campfireChannelConfigSchema.uiHints?.botKey?.sensitive).toBe(true);
+    expect(campfireChannelConfigSchema.uiHints?.["accounts.*.botKey"]?.sensitive).toBe(true);
   });
 });
