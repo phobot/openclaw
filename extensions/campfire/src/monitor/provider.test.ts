@@ -330,7 +330,17 @@ describe("campfire gateway", () => {
   it("reloads config before computing command authorization", async () => {
     const registerRoute = vi.fn().mockReturnValue(() => {});
     const sendText = vi.fn().mockResolvedValue(undefined);
-    const loadConfig = vi.fn(() => ({ commands: { useAccessGroups: true } }));
+    const loadConfig = vi.fn(() => ({
+      commands: { useAccessGroups: true },
+      channels: {
+        campfire: {
+          baseUrl: "https://campfire.example.com",
+          botKey: "100-AbCdEf",
+          allowFrom: [],
+          textChunkLimit: 4000,
+        },
+      },
+    }));
     let finalizedCtx: Record<string, unknown> | undefined;
 
     const gateway = createCampfireGateway({ registerRoute, sendText, loadConfig });
@@ -375,6 +385,48 @@ describe("campfire gateway", () => {
 
     expect(loadConfig).toHaveBeenCalledTimes(1);
     expect(finalizedCtx?.CommandAuthorized).toBe(false);
+
+    abort.abort();
+    await startPromise;
+  });
+
+  it("stops inbound processing when reloaded config removes campfire section", async () => {
+    const registerRoute = vi.fn().mockReturnValue(() => {});
+    const sendText = vi.fn().mockResolvedValue(undefined);
+    const loadConfig = vi.fn(() => ({}));
+
+    const dispatchReplyWithBufferedBlockDispatcher = vi.fn();
+
+    const gateway = createCampfireGateway({ registerRoute, sendText, loadConfig });
+    const abort = new AbortController();
+    const startPromise = gateway.startAccount({
+      cfg: {
+        channels: {
+          campfire: {
+            baseUrl: "https://campfire.example.com",
+            botKey: "100-AbCdEf",
+            allowFrom: [],
+            textChunkLimit: 4000,
+          },
+        },
+      },
+      accountId: "default",
+      account: createAccount(),
+      abortSignal: abort.signal,
+      channelRuntime: {
+        reply: {
+          finalizeInboundContext: vi.fn((ctx: Record<string, unknown>) => ctx),
+          dispatchReplyWithBufferedBlockDispatcher,
+        },
+      },
+    });
+
+    const registered = registerRoute.mock.calls[0]?.[0];
+    await registered.onInbound(validPayload);
+
+    expect(loadConfig).toHaveBeenCalledTimes(1);
+    expect(dispatchReplyWithBufferedBlockDispatcher).not.toHaveBeenCalled();
+    expect(sendText).not.toHaveBeenCalled();
 
     abort.abort();
     await startPromise;

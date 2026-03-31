@@ -102,7 +102,7 @@ async function resolveCampfireInboundConfig(params: {
   log?: {
     warn?: (message: string) => void;
   };
-}): Promise<OpenClawConfig> {
+}): Promise<{ cfg: OpenClawConfig; usedFallback: boolean }> {
   const loadConfig =
     params.loadConfigOverride ??
     (() => {
@@ -110,16 +110,17 @@ async function resolveCampfireInboundConfig(params: {
     });
 
   try {
-    return await Promise.resolve(loadConfig());
+    return {
+      cfg: await Promise.resolve(loadConfig()),
+      usedFallback: false,
+    };
   } catch (err) {
     params.log?.warn?.(`campfire: failed to reload config for inbound webhook: ${String(err)}`);
-    return params.fallback;
+    return {
+      cfg: params.fallback,
+      usedFallback: true,
+    };
   }
-}
-
-function hasCampfireChannelSection(cfg: OpenClawConfig): boolean {
-  const section = cfg.channels?.campfire;
-  return Boolean(section && typeof section === "object" && !Array.isArray(section));
 }
 
 export function createCampfireGateway(params?: {
@@ -151,16 +152,17 @@ export function createCampfireGateway(params?: {
           return;
         }
 
-        const currentCfg = await resolveCampfireInboundConfig({
+        const resolvedInboundConfig = await resolveCampfireInboundConfig({
           fallback: ctx.cfg,
           loadConfigOverride: loadConfig,
           log: ctx.log,
         });
+        const currentCfg = resolvedInboundConfig.cfg;
         const resolvedCurrentAccount = resolveCampfireAccount(currentCfg, ctx.account.accountId);
         const currentAccount =
+          resolvedInboundConfig.usedFallback &&
           !resolvedCurrentAccount.configured &&
-          ctx.account.configured &&
-          !hasCampfireChannelSection(currentCfg)
+          ctx.account.configured
             ? ctx.account
             : resolvedCurrentAccount;
         if (!currentAccount.enabled || !currentAccount.configured) {
