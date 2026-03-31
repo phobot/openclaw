@@ -54,6 +54,24 @@ describe("isCampfireUrlInWorkspaceScope", () => {
     ).toBe(false);
   });
 
+  it("blocks same-workspace URLs that are not Campfire message endpoints", () => {
+    expect(
+      isCampfireUrlInWorkspaceScope(
+        "https://campfire.example.com/admin",
+        "https://campfire.example.com",
+      ),
+    ).toBe(false);
+  });
+
+  it("blocks same-basecamp-workspace URLs outside message endpoints", () => {
+    expect(
+      isCampfireUrlInWorkspaceScope(
+        "https://3.basecamp.com/1234567/admin",
+        "https://3.basecamp.com/1234567",
+      ),
+    ).toBe(false);
+  });
+
   it("returns false when either URL is invalid", () => {
     expect(isCampfireUrlInWorkspaceScope("not-a-url", "https://campfire.example.com")).toBe(false);
     expect(isCampfireUrlInWorkspaceScope("https://campfire.example.com/rooms/7", "not-a-url")).toBe(
