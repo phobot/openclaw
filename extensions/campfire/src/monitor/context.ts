@@ -5,12 +5,46 @@ function isAllowedReplyUrl(replyUrl: string, baseUrl: string): boolean {
   return isCampfireUrlInWorkspaceScope(replyUrl, baseUrl);
 }
 
+function findSegmentAfter(pathname: string, marker: string): string | null {
+  const segments = pathname
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const markerIndex = segments.findIndex((segment) => segment.toLowerCase() === marker);
+  if (markerIndex < 0) {
+    return null;
+  }
+  const nextSegment = segments[markerIndex + 1]?.trim();
+  return nextSegment ? nextSegment : null;
+}
+
+function resolveInboundRoomId(payload: CampfireWebhookPayload): string {
+  const fallbackRoomId = String(payload.room.id);
+  const normalizedPath = payload.room.path.trim();
+  if (!normalizedPath) {
+    return fallbackRoomId;
+  }
+
+  try {
+    const url = new URL(normalizedPath);
+    return (
+      findSegmentAfter(url.pathname, "rooms") ??
+      findSegmentAfter(url.pathname, "chats") ??
+      findSegmentAfter(url.pathname, "buckets") ??
+      fallbackRoomId
+    );
+  } catch {
+    return fallbackRoomId;
+  }
+}
+
 export function buildCampfireInboundContext(params: {
   payload: CampfireWebhookPayload;
   allowFrom?: string[];
   baseUrl: string;
 }) {
   const { payload, allowFrom, baseUrl } = params;
+  const routeRoomId = resolveInboundRoomId(payload);
   const senderId = String(payload.user.id);
   const senderName = payload.user.name;
 
@@ -28,11 +62,11 @@ export function buildCampfireInboundContext(params: {
       id: senderId,
       name: senderName,
     },
-    roomId: String(payload.room.id),
+    roomId: routeRoomId,
     roomName: payload.room.name,
     replyUrl: payload.room.path,
     messageId: String(payload.message.id),
     text: payload.message.body.plain,
-    threadKey: `campfire:room:${payload.room.id}`,
+    threadKey: `campfire:room:${routeRoomId}`,
   };
 }
