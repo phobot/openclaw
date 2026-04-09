@@ -2,6 +2,7 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { describe, expect, it } from "vitest";
 import {
   campfireChannelConfigSchema,
+  campfireConfigSchema,
   listCampfireAccountIds,
   resolveCampfireAccount,
   resolveDefaultCampfireAccountId,
@@ -230,5 +231,23 @@ describe("campfire config resolution", () => {
   it("marks botKey fields as sensitive in config schema ui hints", () => {
     expect(campfireChannelConfigSchema.uiHints?.botKey?.sensitive).toBe(true);
     expect(campfireChannelConfigSchema.uiHints?.["accounts.*.botKey"]?.sensitive).toBe(true);
+  });
+
+  it("rejects bare Basecamp shard URLs in schema", () => {
+    const topLevelResult = campfireConfigSchema.safeParse({
+      baseUrl: "https://3.basecamp.com",
+      botKey: "42-AbCdEf",
+    });
+    const accountResult = campfireConfigSchema.safeParse({
+      accounts: {
+        support: {
+          baseUrl: "https://3.basecamp.com",
+          botKey: "99-ZyXwVu",
+        },
+      },
+    });
+
+    expect(topLevelResult.success).toBe(false);
+    expect(accountResult.success).toBe(false);
   });
 });

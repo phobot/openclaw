@@ -11,6 +11,31 @@ import type {
 
 const DEFAULT_TEXT_CHUNK_LIMIT = 4000;
 
+function normalizeUrlPath(pathname: string): string {
+  const trimmed = pathname.replace(/\/+$/u, "");
+  return trimmed ? trimmed : "/";
+}
+
+function isBareBasecampHostUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    if (!/(^|\.)basecamp\.com$/u.test(parsed.hostname)) {
+      return false;
+    }
+    return normalizeUrlPath(parsed.pathname) === "/";
+  } catch {
+    return false;
+  }
+}
+
+const campfireBaseUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => !isBareBasecampHostUrl(value), {
+    message:
+      "Campfire baseUrl must include a Basecamp workspace path (for example https://3.basecamp.com/1234567).",
+  });
+
 function trimOptionalString(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -149,7 +174,7 @@ export const campfireAccountSchema = z
   .object({
     name: z.string().optional(),
     enabled: z.boolean().optional(),
-    baseUrl: z.string().url().optional(),
+    baseUrl: campfireBaseUrlSchema.optional(),
     botKey: z.string().min(1).optional(),
     webhookSecret: z.string().optional(),
     allowFrom: z.array(z.string()).optional(),
