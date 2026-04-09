@@ -24,7 +24,8 @@
     "install": {
       "npmSpec": "@openclaw/campfire",
       "localPath": "extensions/campfire",
-      "defaultChoice": "npm"
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.10"
     },
     "release": {
       "publishToNpm": true
