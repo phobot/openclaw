@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   normalizeWebhookPath,
@@ -63,12 +64,25 @@ function isCampfireRouteRegistrationFailureLog(message: string): boolean {
 }
 
 function resolveRequestSecret(req: IncomingMessage): string | null {
+  const headerValue = req.headers["x-webhook-secret"];
+  if (typeof headerValue === "string") {
+    return headerValue;
+  }
   try {
     const url = new URL(req.url ?? "/", "http://localhost");
     return url.searchParams.get("secret");
   } catch {
     return null;
   }
+}
+
+function secretsMatch(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided, "utf-8");
+  const expectedBuf = Buffer.from(expected, "utf-8");
+  if (providedBuf.length !== expectedBuf.length) {
+    return false;
+  }
+  return timingSafeEqual(providedBuf, expectedBuf);
 }
 
 export function createCampfireWebhookHandler(params: {
@@ -87,7 +101,7 @@ export function createCampfireWebhookHandler(params: {
     const configuredWebhookSecret = params.webhookSecret?.trim();
     if (configuredWebhookSecret) {
       const secret = resolveRequestSecret(req);
-      if (secret !== configuredWebhookSecret) {
+      if (!secret || !secretsMatch(secret, configuredWebhookSecret)) {
         res.statusCode = 401;
         res.end("Unauthorized");
         return;

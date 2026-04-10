@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { IncomingMessage } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMockServerResponse } from "../../../../test/helpers/extensions/mock-http-response.js";
+import { createMockServerResponse } from "../../../../test/helpers/plugins/mock-http-response.js";
 import { __testing, createCampfireWebhookHandler, registerCampfireWebhookRoute } from "./index.js";
 
 function createJsonRequest(params: {
@@ -20,7 +20,7 @@ function createJsonRequest(params: {
   req.url = params.url ?? "/channels/campfire/webhook/default";
   req.headers = {
     "content-type": "application/json",
-    ...(params.headers ?? {}),
+    ...params.headers,
   };
   req.destroyed = false;
   (req as unknown as { socket: { remoteAddress: string } }).socket = {
@@ -148,6 +148,84 @@ describe("createCampfireWebhookHandler", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onInbound).toHaveBeenCalledWith(validPayload);
+  });
+
+  it("accepts webhook secret from X-Webhook-Secret header", async () => {
+    const onInbound = vi.fn();
+    const handler = createCampfireWebhookHandler({ webhookSecret: "header-secret", onInbound });
+    const req = createJsonRequest({
+      body: validPayload,
+      headers: { "x-webhook-secret": "header-secret" },
+    });
+    const res = createMockServerResponse();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onInbound).toHaveBeenCalledWith(validPayload);
+  });
+
+  it("rejects webhook request with wrong X-Webhook-Secret header", async () => {
+    const handler = createCampfireWebhookHandler({
+      webhookSecret: "correct",
+      onInbound: vi.fn(),
+    });
+    const req = createJsonRequest({
+      body: validPayload,
+      headers: { "x-webhook-secret": "wrong" },
+    });
+    const res = createMockServerResponse();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("prefers X-Webhook-Secret header over query param", async () => {
+    const onInbound = vi.fn();
+    const handler = createCampfireWebhookHandler({ webhookSecret: "from-header", onInbound });
+    const req = createJsonRequest({
+      url: "/channels/campfire/webhook/default?secret=wrong-param",
+      body: validPayload,
+      headers: { "x-webhook-secret": "from-header" },
+    });
+    const res = createMockServerResponse();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onInbound).toHaveBeenCalledWith(validPayload);
+  });
+
+  it("falls back to query param secret when header is absent", async () => {
+    const onInbound = vi.fn();
+    const handler = createCampfireWebhookHandler({ webhookSecret: "fallback-secret", onInbound });
+    const req = createJsonRequest({
+      url: "/channels/campfire/webhook/default?secret=fallback-secret",
+      body: validPayload,
+    });
+    const res = createMockServerResponse();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onInbound).toHaveBeenCalledWith(validPayload);
+  });
+
+  it("rejects when no secret is provided but one is configured", async () => {
+    const handler = createCampfireWebhookHandler({
+      webhookSecret: "required",
+      onInbound: vi.fn(),
+    });
+    const req = createJsonRequest({ body: validPayload });
+    const res = createMockServerResponse();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(401);
   });
 
   it("rejects duplicate webhook paths across different accounts", () => {
