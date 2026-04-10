@@ -89,8 +89,8 @@ describe("createCampfireWebhookHandler", () => {
       onInbound: vi.fn(),
     });
     const req = createJsonRequest({
-      url: "/channels/campfire/webhook/default?secret=wrong",
       body: validPayload,
+      headers: { "x-webhook-secret": "wrong" },
     });
     const res = createMockServerResponse();
 
@@ -121,8 +121,8 @@ describe("createCampfireWebhookHandler", () => {
   it("rejects malformed payloads", async () => {
     const handler = createCampfireWebhookHandler({ webhookSecret: "expected", onInbound: vi.fn() });
     const req = createJsonRequest({
-      url: "/channels/campfire/webhook/default?secret=expected",
       body: { user: { id: 42 } },
+      headers: { "x-webhook-secret": "expected" },
     });
     const res = createMockServerResponse();
 
@@ -135,8 +135,8 @@ describe("createCampfireWebhookHandler", () => {
     const onInbound = vi.fn();
     const handler = createCampfireWebhookHandler({ webhookSecret: "expected", onInbound });
     const req = createJsonRequest({
-      url: "/channels/campfire/webhook/default?secret=expected",
       body: validPayload,
+      headers: { "x-webhook-secret": "expected" },
     });
     const res = createMockServerResponse();
 
